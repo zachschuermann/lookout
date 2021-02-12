@@ -3,6 +3,12 @@ name = "lookout"
 version = "0.1.0"
 authors = ["Zach Schuermann <zachary.zvs@gmail.com>"]
 edition = "2018"
+license = "MIT"
+keywords = ["scraper", "scraping"]
+repository = "https://github.com/schuermannator/lookout"
+homepage = "https://github.com/schuermannator/lookout"
+readme = "README.md"
+description = "👀 Declarative, asynchronous scraper utility."
 
 [dependencies]
 log = "0.4.11"
