@@ -1,17 +1,17 @@
+use crate::caller::*;
 use crate::{info, warn, LOG};
 use async_std::task;
+use chrono::Local;
 use futures::join;
 use once_cell::unsync::{Lazy, OnceCell};
 use regex::Regex;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::time::Duration;
 use surf::http::{Request, Url};
-use chrono::Local;
-use std::io::Write;
-use std::fs::OpenOptions;
-use crate::caller::*;
 
 const SURF_CLIENT: Lazy<surf::Client> = Lazy::new(|| surf::Client::new());
 
@@ -39,6 +39,7 @@ pub(crate) async fn check_and_alert(
     num_matches: usize,
     expected: usize,
     alert_url: &str,
+    alert_delay: u64,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     if num_matches != expected {
         if TW_CONFIG.get().expect("TW_CONFIG get").enable_call {
@@ -47,9 +48,12 @@ pub(crate) async fn check_and_alert(
         if TW_CONFIG.get().expect("TW_CONFIG get").enable_text {
             send_text(alert_url).await?;
         }
-        warn(name, &format!("expected {} found {}", expected, num_matches));
+        warn(
+            name,
+            &format!("expected {} found {}", expected, num_matches),
+        );
         warn(name, alert_url);
-        task::sleep(Duration::from_secs(20)).await; // TODO alert_delay
+        task::sleep(Duration::from_secs(alert_delay)).await;
         Ok(true)
     } else {
         Ok(false)
@@ -57,15 +61,18 @@ pub(crate) async fn check_and_alert(
 }
 
 impl<'a> Lookout {
-    pub(crate) async fn scrape_timeout(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let scraper = self.scrape();
+    pub(crate) async fn scrape_timeout(
+        &self,
+        alert_delay: u64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let scraper = self.scrape(alert_delay);
         // delay instead of timer so we seem less like a bot??
         let sleeper = task::sleep(Duration::from_secs(self.timeout));
         let (scraper, _) = join!(scraper, sleeper);
         scraper
     }
 
-    pub(crate) async fn scrape(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) async fn scrape(&self, alert_delay: u64) -> Result<(), Box<dyn std::error::Error>> {
         let mut haystack = match &self.headers {
             None => surf::get(&self.url).await?.body_string().await?,
             Some(headers) => {
@@ -99,13 +106,13 @@ impl<'a> Lookout {
             &format!("Found {} instances of '{}'", matches, self.regex),
         );
         if *LOG.get().expect("get LOG") {
-            println!("DOINGLOG");
             let time = Local::now();
             // log body
-            let mut file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(format!("{}-{}.html", self.name, time.timestamp()))?;
+            let mut file = OpenOptions::new().create(true).append(true).open(format!(
+                "{}-{}.html",
+                self.name,
+                time.timestamp()
+            ))?;
             file.write(haystack.as_bytes())?;
         }
         let _ = check_and_alert(
@@ -113,6 +120,7 @@ impl<'a> Lookout {
             matches,
             self.expected_matches,
             self.url.to_string().as_ref(),
+            alert_delay,
         )
         .await?;
         Ok(())

@@ -1,7 +1,10 @@
+use async_std::task;
 use futures::future::join_all;
 use log::{info, warn};
 use once_cell::sync::OnceCell;
 use serde::Deserialize;
+use std::env;
+use std::time::Duration;
 
 mod caller;
 use crate::caller::*;
@@ -47,9 +50,13 @@ fn warn(ctx: &str, msg: &str) {
     info_warn(ctx, msg, true);
 }
 
-async fn start_lookout(lookout: Lookout) {
-    loop {
-        lookout.scrape_timeout().await.expect("scrape_timeout");
+async fn start_lookout(lookout: Lookout, alert_delay: u64, error_delay: u64, allowed_errors: u64) {
+    let mut errors = 0;
+    while errors < allowed_errors {
+        if lookout.scrape_timeout(alert_delay).await.is_err() {
+            task::sleep(Duration::from_secs(error_delay)).await;
+            errors += 1
+        }
     }
 }
 
@@ -57,7 +64,13 @@ async fn start_lookout(lookout: Lookout) {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let config: Config = toml::from_str(&std::fs::read_to_string("lookout.toml")?)?;
+    let path = match env::args().nth(1) {
+        Some(p) => p,
+        None => "lookout.toml".to_owned(),
+    };
+    // TODO better error message for read_to_string failure
+    // (likely no config file to read from or incorrect path)
+    let config: Config = toml::from_str(&std::fs::read_to_string(path)?)?;
     PADDING
         .set(
             config
@@ -74,7 +87,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut handles = vec![];
     for lookout in config.lookout {
         info(&lookout.name, "starting");
-        handles.push(start_lookout(lookout));
+        handles.push(start_lookout(
+            lookout,
+            config.alert_delay,
+            config.error_delay,
+            config.allowed_errors,
+        ));
     }
     join_all(handles).await;
 

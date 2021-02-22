@@ -1,11 +1,10 @@
+use crate::warn;
 /// Exposes calling/texting functionality via Twilio
-
 use once_cell::sync::Lazy;
-use twilio::{OutboundCall, OutboundMessage};
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
 use surf::http::Url;
-use once_cell::sync::OnceCell;
-use crate::warn;
+use twilio::{OutboundCall, OutboundMessage};
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct TwilioConfig {
@@ -22,7 +21,7 @@ pub(crate) static TW_CONFIG: OnceCell<TwilioConfig> = OnceCell::new();
 
 // must set config prior to using
 pub(crate) fn set_twilio_config(config: TwilioConfig) {
-    TW_CONFIG.set(config).expect("set twilio config"); 
+    TW_CONFIG.set(config).expect("set twilio config");
 }
 
 /// Time to call home
@@ -34,22 +33,17 @@ pub(crate) async fn make_the_call(callback: &str) -> Result<(), Box<dyn std::err
         None => {
             warn("twilio", "No 'from phone' number provided.");
             return Ok(());
-        },
+        }
     };
     let to_phone = match &config.to_phone {
         Some(phone) => phone,
         None => {
             warn("twilio", "No 'to phone' number provided.");
             return Ok(());
-        },
+        }
     };
 
-    let call = tw_client
-        .make_call(OutboundCall::new(
-            &from_phone,
-            &to_phone,
-            callback,
-        ));
+    let call = tw_client.make_call(OutboundCall::new(&from_phone, &to_phone, callback));
 
     call.await?;
     Ok(())
@@ -64,22 +58,17 @@ pub(crate) async fn send_text(message: &str) -> Result<(), Box<dyn std::error::E
         None => {
             warn("twilio", "No 'from phone' number provided.");
             return Ok(());
-        },
+        }
     };
     let to_phone = match &config.to_phone {
         Some(phone) => phone,
         None => {
             warn("twilio", "No 'to phone' number provided.");
             return Ok(());
-        },
+        }
     };
 
-    let msg = tw_client
-        .send_message(OutboundMessage::new(
-            &from_phone,
-            &to_phone,
-            message,
-        ));
+    let msg = tw_client.send_message(OutboundMessage::new(&from_phone, &to_phone, message));
 
     msg.await?;
     Ok(())
@@ -94,14 +83,14 @@ fn get_client() -> Lazy<twilio::Client> {
             None => {
                 warn("twilio", "No twilio id/auth provided");
                 ""
-            },
+            }
         };
         let auth = match &config.twilio_auth {
             Some(n) => n,
             None => {
                 warn("twilio", "No twilio id/auth provided");
                 ""
-            },
+            }
         };
 
         twilio::Client::new(id, auth)
