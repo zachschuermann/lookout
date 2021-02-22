@@ -54,10 +54,10 @@ allowed_errors = 20
 [twilio]
 enable_call = true
 enable_text = true
-id = XXXXXXXXXXXXXXXX
-auth = XXXXXXXXXXXXXXXX
-to_phone = +10123456789
-from_phone = +10123456789
+id = "XXXXXXXXXXXXXXXX"
+auth = "XXXXXXXXXXXXXXXX"
+to_phone = "+10123456789"
+from_phone = "+10123456789"
 default_callback = "https://<callback-url>"
 
 # define a [[lookout]] block for each scraper
@@ -76,7 +76,7 @@ url = "https://www.newegg.com/product"
 regex = "OUT OF STOCK|SOLD OUT|Sold Out"
 expected_matches = 3
 selectors = [ "#app > div.page-content > div.page-section > div > div > div.row-side > div.product-buy-box",
-              "#app > div.page-content > div.page-section > div > div > div.row-body > div.product-main.display-flex > div
+              "#app > div.page-content > div.page-section > div > div > div.row-body > div.product-main.display-flex > div" ]
 timeout = 180
 
 [[lookout]]
