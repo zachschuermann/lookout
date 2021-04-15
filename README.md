@@ -1,5 +1,7 @@
-Lookout
-=======
+Lookout &emsp; [![Latest Version]][crates.io]
+=============================================
+[Latest Version]: https://img.shields.io/crates/v/lookout.svg
+[crates.io]: https://crates.io/crates/lookout
 
 An asynchronous scraper utility. Given a TOML file describing sites, selectors, regex, and expected
 regex matches, this will continuously scrape and call/text your phone using Twilio when expected
